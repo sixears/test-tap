@@ -1,0 +1,36 @@
+#!/usr/bin/perl
+
+use 5.14.0;
+use strict;
+use warnings;
+
+use FindBin              qw( $Bin $Script );
+use IPC::Run             qw( io run );
+use IPC::System::Simple  qw( systemx );
+use Readonly             qw( Readonly );
+
+Readonly my $RUNTEST => 'test-tap-runtest';
+Readonly my $DIFF => '/usr/bin/diff';
+Readonly my $EXE  => "$Bin/../dist/build/$RUNTEST/$RUNTEST";
+
+my ($exp_out, $exp_err);
+
+run io("$Bin/Test.out", '>', \$exp_out);
+run io("$Bin/Test.err", '>', \$exp_err);
+
+my ($out, $err) = ('') x 2;
+run [ $EXE ], '>' => \$out, '2>' => \$err;
+my $rv = $?;
+my ($exit, $core, $sig) = ($rv >> 8, ($rv & 128) >> 7, $rv & 127);
+
+run [ $DIFF, "$Bin/Test.err", '-' ], '<', \$err or die "stderr differs\n";
+run [ $DIFF, "$Bin/Test.out", '-' ], '<', \$out or die "stdout differs\n";
+
+die "wrong exit (expected 4)\n"
+  unless 4 == $exit;
+die "received signal $sig\n"
+  unless 0 == $sig;
+die "dumped core\n"
+  if $core;
+
+say 'test ok';
