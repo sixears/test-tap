@@ -10,7 +10,7 @@ name:                test-tap
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.1.0.0
+version:             0.1.0.1
 
 -- A short (one-line) description of the package.
 synopsis:            run tests, producing TAP output
@@ -90,7 +90,10 @@ test-suite test
 
 ----------------------------------------
 
-executable test-tap-runtest
+-- not really a benchmark; rather a compiled test script that I don't want
+-- installed
+Benchmark test-tap-runtest
+  type:                exitcode-stdio-1.0
   ghc-options:         -O2 -W -Wall -fhelpful-errors
   main-is:             Test.hs
   ghc-options:         -rtsopts -O2
