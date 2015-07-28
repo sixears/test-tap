@@ -25,8 +25,8 @@ import Console.Rainbow  ( CLines )
 -- | represent a test to run, or maybe some diagnostic text without an
 --   associated test
 
-data Test      = Test { t_ok :: Bool, t_name :: String, t_diags :: CLines }
-               | Diag { diags :: CLines }
+data Test      = Test { t_ok :: Bool, t_name :: String, t_diags :: CLines String }
+               | Diag { diags :: CLines String }
   deriving Show
 
 -- | is this really a test, or just some diag?

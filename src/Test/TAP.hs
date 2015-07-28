@@ -19,7 +19,7 @@ with terminal highlighting/underlining, etc.
 
 module Test.TAP
   ( -- * Synopsis
-    
+
     {- | @
          test [ -- simple test, always succeeds
                 ok   True  "-ok test-"
@@ -28,11 +28,11 @@ module Test.TAP
                 -- this is caught, causing a test fail but continues
               , okay undefined "-explode-" ["bang"]
               , diag "this is a diagnostic string (no test)"
-              , diag [ cpack "this is a "
-                     , cpack "red" <> fore red <> back white
-                     , cpack " word"
+              , diag [ chunk "this is a "
+                     , chunk "red" <> fore red <> back white
+                     , chunk " word"
                      ]
-                -- compare two things, output the diffs using terminal 
+                -- compare two things, output the diffs using terminal
                 -- highlighting
               , is   "foo" "bar"  "-is test-"
                 -- compare two lists, output diffs in an explanatory table
@@ -42,8 +42,8 @@ module Test.TAP
               ]
          @
      -}
-    Test( Diag ), 
-    check, diag, explain, is, like, ok, okay, test, test_ 
+    Test( Diag ), Diagable( diagable ), Diff, Chunky( chunky ),
+    check, diag, diff, explain, is, like, ok, okay, test, test_
   )
 where
 
@@ -54,7 +54,6 @@ import Control.Monad.IO.Class  ( MonadIO( liftIO ) )
 import Control.Monad.State     ( execStateT, get, put )
 import Data.List               ( intercalate, unzip4 )
 import Data.Maybe              ( fromJust, isJust )
-import Data.Monoid             ( (<>) )
 import System.Exit             ( ExitCode( ExitFailure )
                                , exitSuccess, exitWith
                                )
@@ -78,12 +77,8 @@ import Test.QuickCheck.Test  ( isSuccess )
 
 -- rainbow -----------------------------
 
-import Rainbow  ( Chunk(..)
-                , fromText, bold, inverse, underline, flash )
-
--- text --------------------------------
-
-import qualified Data.Text as T
+import Rainbow  ( Chunk, chunk
+                , bold, inverse, underline, blink )
 
 -- local-packages ------------------------------------------
 
@@ -208,7 +203,7 @@ test_ok n _ = do
   put (i+1, fails)
   return ()
 
-test_fail :: String -> CLines -> TestStateIO ()
+test_fail :: String -> CLines String -> TestStateIO ()
 test_fail n cls = do
   (i, fails) <- get
   liftIO . putStrLn $ printf "not ok %d - %s" (i+1) n
@@ -217,13 +212,13 @@ test_fail n cls = do
 --  put (i+1, i+1 : fails)
 --  return ()
 
-test_failed :: CLines -> Int -> [Int] -> TestStateIO()
+test_failed :: CLines String -> Int -> [Int] -> TestStateIO()
 test_failed cls i fails = do
   liftIO $ diagable cls
   put (i+1, i+1 : fails)
   return ()
 
-test_except :: String -> SomeException -> CLines -> TestStateIO ()
+test_except :: String -> SomeException -> CLines String -> TestStateIO ()
 test_except n e cls = do
   (i, fails) <- get
   liftIO . putStrLn $ printf "not ok %d - %s" (i+1) n
@@ -244,12 +239,6 @@ test_state (Test b n ds) = do
     Right False                ->  test_fail n ds
     Left e                     ->  test_except n e ds
 
-
---------------------------------------------------------------------------------
-
-cpack :: String -> Chunk
-cpack = fromText . T.pack
-
 -- is --------------------------------------------------------------------------
 
 {- | test if two values are equal (per '(==)').  If not, stringify the results
@@ -263,9 +252,10 @@ is :: (Eq a, Show a) => a
                      -> String
                      -> Test
 is x y s = let diffs = diff (show x) (show y)
-               changed c = [cpack [c] <> inverse]
-               extra   c = [cpack [c] <> underline <> bold <> flash]
-               normal  c = [cpack [c]]
+               changed :: Char -> [Chunk String]
+               changed c = [inverse $ chunk [c]]
+               extra   c = [underline . bold .blink $ chunk [c]]
+               normal  c = [chunk [c]]
                got  = (\d -> case d of
                                 Change c _ -> changed c
                                 First  c   -> extra c
@@ -278,8 +268,8 @@ is x y s = let diffs = diff (show x) (show y)
                                Second c   -> extra c
                                Both   _ c -> normal c
                             ) =<< diffs
-            in okay (x == y) s [ cpack "     got: " : got
-                               , cpack "expected: " : expt
+            in okay (x == y) s [ chunk "     got: " : got
+                               , chunk "expected: " : expt
                                ]
 
 -- check -----------------------------------------------------------------------
@@ -375,22 +365,23 @@ okay b s es = Test b s (chunky es)
 --   strings, but also Rainbow Chunks
 
 class Chunky a where
-  chunky :: a -> CLines
+  chunky :: a -> CLines String
 
-instance Chunky [[Chunk]] where
+instance Chunky [[Chunk String]] where
+  -- :: [[Chunk String]] -> CLines String
+  chunky = mconcat . fmap clines
+
+instance Chunky [Chunk String] where
+  -- :: [Chunk] -> CLines String
   chunky = clines
 
-instance Chunky [Chunk] where
-  -- :: [Chunk] -> CLines
-  chunky cs = clines [cs]
-
 instance Chunky String where
-  -- :: String -> CLines
+  -- :: String -> CLines String
   chunky s = chunky [s]
 
 instance Chunky [String] where
-  -- :: [String] -> CLines
-  chunky = clines . fmap (return . cpack)
+  -- :: [String] -> CLines String
+  chunky = mconcat . fmap (clines . (:[]) . chunk)
 
 -- | write a string to stdout with a leading # on each line
 

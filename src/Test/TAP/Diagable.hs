@@ -84,7 +84,7 @@ getEnv e = unsafePerformIO $ do
 --   Diagable
 
 class Diagable t where
-  diagable :: CLines -> t
+  diagable :: CLines String -> t
 
 instance a ~ () => Diagable (IO a) where
   -- CLines -> IO ()

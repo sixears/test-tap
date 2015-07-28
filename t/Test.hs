@@ -12,15 +12,9 @@ import System.Exit         ( ExitCode( ExitFailure )
 import System.IO.Error     ( isDoesNotExistError )
 import System.IO.Unsafe    ( unsafePerformIO )
 
-import Data.Monoid  ( (<>) )
-
 -- rainbow -----------------------------
 
-import Rainbow  ( Chunk, back, fore, fromText, red, white )
-
--- text --------------------------------
-
-import qualified Data.Text as T
+import Rainbow  ( back, chunk, fore, red, white )
 
 -- this package --------------------------------------------
 
@@ -46,11 +40,6 @@ getEnv e = unsafePerformIO $ do
            en <- tryJust (guard . isDoesNotExistError) $ SysEnv.getEnv e
            either (\ _ -> return Nothing) (return . Just) en
 
--- cpack -------------------------------
-
-cpack :: String -> Chunk
-cpack = fromText . T.pack
-
 -- main --------------------------------
 
 main :: IO()
@@ -67,9 +56,9 @@ main = do
               , okay undefined "-explode-" ["bang"]
               , diag ""
               , diag "this is a diagnostic string"
-              , diag [ cpack "this is a "
-                     , cpack "red" <> fore red <> back white
-                     , cpack " word"
+              , diag [ chunk "this is a "
+                     , fore red $ back white $ chunk "red"
+                     , chunk " word"
                      ]
               , diag ["some", "lines"]
               , is   "foo" "foo"  "-is test-"
